@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no">
+  <title>Fortune Coffee Spiral Particles</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%; background: #6D705D;
+    }
+    body {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: Arial, sans-serif; color: #fff;
+    }
+    #canvas {
+      width: 100%;
+      height: 100vh;
+      display: block;
+      background: #6D705D;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<script>
+window.onload = function() {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  let particlesArray = [];
+  const particleSize = 1.4;
+  const particleSpacing = 1.8;
+  const mouse = { x: null, y: null, radius: 70 };
+  let currentPhase = 1; // 1 = fly to circle, 2 = orbit circle, 3 = form shape
+
+  window.addEventListener('mousemove', function(event) {
+    mouse.x = event.x;
+    mouse.y = event.y;
+  });
+
+  class Particle {
+    constructor(targetX, targetY) {
+      this.baseX = targetX;
+      this.baseY = targetY;
+
+      // Start anywhere randomly on screen
+      this.x = Math.random() * canvas.width;
+      this.y = Math.random() * canvas.height;
+
+      // Target circle center & radius
+      this.targetCircleX = canvas.width / 2;
+      this.targetCircleY = canvas.height / 2;
+      this.targetCircleRadius = 150;
+
+      // Orbit center - assigned in phase 2
+      this.orbitCenterX = null;
+      this.orbitCenterY = null;
+
+      this.angle = Math.random() * Math.PI * 2;
+      this.radius = 20 + Math.random() * 30;
+      this.angularVelocity = 0.05 + Math.random() * 0.03;
+
+      this.size = particleSize;
+      this.color = '#000';
+      this.density = Math.random() * 30 + 1;
+    }
+
+    draw() {
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    update() {
+      if (currentPhase === 1) {
+        // Fly to a random point inside the circle
+        if (!this._circleTargetPos) {
+          const t = 2 * Math.PI * Math.random();
+          const u = Math.random() + Math.random();
+          const r = u > 1 ? 2 - u : u;
+          this._circleTargetPos = {
+            x: this.targetCircleX + this.targetCircleRadius * r * Math.cos(t),
+            y: this.targetCircleY + this.targetCircleRadius * r * Math.sin(t)
+          };
+        }
+
+        const dx = this._circleTargetPos.x - this.x;
+        const dy = this._circleTargetPos.y - this.y;
+        this.x += dx * 0.05;
+        this.y += dy * 0.05;
+
+      } else if (currentPhase === 2) {
+        // Orbit inside circle
+        if (this.orbitCenterX === null || this.orbitCenterY === null) {
+          const t = 2 * Math.PI * Math.random();
+          const u = Math.random() + Math.random();
+          const r = u > 1 ? 2 - u : u;
+          this.orbitCenterX = this.targetCircleX + this.targetCircleRadius * r * Math.cos(t);
+          this.orbitCenterY = this.targetCircleY + this.targetCircleRadius * r * Math.sin(t);
+          this.angle = Math.random() * Math.PI * 2;
+          this.radius = 20 + Math.random() * 30;
+        }
+        this.angle += this.angularVelocity;
+        this.radius += 0.1;
+        this.x = this.orbitCenterX + Math.cos(this.angle) * this.radius;
+        this.y = this.orbitCenterY + Math.sin(this.angle) * this.radius;
+
+      } else if (currentPhase === 3) {
+        // Form SVG shape and respond to mouse
+        if(mouse.x === null || mouse.y === null) {
+          let dxBase = this.x - this.baseX;
+          let dyBase = this.y - this.baseY;
+          this.x -= dxBase / 10;
+          this.y -= dyBase / 10;
+          return;
+        }
+
+        let dx = mouse.x - this.x;
+        let dy = mouse.y - this.y;
+        let distance = Math.hypot(dx, dy) || 1;
+        let force = (mouse.radius - distance) / mouse.radius;
+        let directionX = (dx / distance) * force * this.density;
+        let directionY = (dy / distance) * force * this.density;
+
+        if (distance < mouse.radius) {
+          this.x -= directionX;
+          this.y -= directionY;
+        } else {
+          let dxBase = this.x - this.baseX;
+          let dyBase = this.y - this.baseY;
+          this.x -= dxBase / 10;
+          this.y -= dyBase / 10;
+        }
+      }
+    }
+  }
+
+  async function loadSVG(url) {
+    const response = await fetch(url);
+    const text = await response.text();
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(text, "image/svg+xml");
+    const paths = xmlDoc.getElementsByTagName("path");
+    return Array.from(paths).map(path => path.getAttribute("d"));
+  }
+
+  function getParticlePositions(pathData) {
+    const positions = [];
+    const path = new Path2D(pathData);
+    let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
+    for (let y = 0; y < canvas.height; y += particleSpacing) {
+      for (let x = 0; x < canvas.width; x += particleSpacing) {
+        if (ctx.isPointInPath(path, x, y)) {
+          positions.push({ x, y });
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    return { positions, minX, maxX, minY, maxY };
+  }
+
+  async function init() {
+    particlesArray = [];
+    const svgPaths = await loadSVG('symbols/eye.svg');  // Put your SVG path here
+    let allPositions = [], minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
+
+    svgPaths.forEach(pathData => {
+      const { positions, minX: px, maxX: pX, minY: py, maxY: pY } = getParticlePositions(pathData);
+      allPositions.push(...positions);
+      minX = Math.min(minX, px); maxX = Math.max(maxX, pX);
+      minY = Math.min(minY, py); maxY = Math.max(maxY, pY);
+    });
+
+    const offsetX = (canvas.width - (maxX - minX)) / 2 - minX;
+    const offsetY = (canvas.height - (maxY - minY)) / 2 - minY;
+    allPositions = allPositions.map(p => ({ x: p.x + offsetX, y: p.y + offsetY }));
+
+    allPositions.forEach(pos => particlesArray.push(new Particle(pos.x, pos.y)));
+
+    // Phase switches: 1 → 2 → 3 with ~1.2s intervals
+    setTimeout(() => currentPhase = 2, 1200);
+    setTimeout(() => currentPhase = 3, 2400);
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particlesArray.forEach(p => { p.draw(); p.update(); });
+    requestAnimationFrame(animate);
+  }
+
+  init();
+  animate();
+
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    init();
+  });
+};
+</script>
+
+</body>
+</html>

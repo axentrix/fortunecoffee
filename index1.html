@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no">
+  <title>Fortune Coffee Swipe Control</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%; background: #fff;
+    }
+    body {
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    }
+    #riveCanvas {
+      width: 100%;
+      height: 711px;
+      max-width: 400px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="riveCanvas" width="360" height="640"></canvas>
+
+<script src="https://unpkg.com/@rive-app/canvas"></script>
+
+<script>
+const canvas = document.getElementById("riveCanvas");
+
+let riveInstance;
+let drinkingAnim;
+let isDragging = false;
+let lastY = null;
+let currentFrame = 0;
+
+new rive.Rive({
+  src: 'fortune_coffee_small.riv',
+  canvas: canvas,
+  autoplay: false, // critical!
+  artboard: 'Main',
+  onLoad: () => {
+    console.log("✅ Rive loaded");
+
+    // Find the animation named 'drinking2'
+    drinkingAnim = riveInstance.animations.find(a => a.name === 'drinking2');
+    if (!drinkingAnim) {
+      console.error("❌ Animation 'drinking2' not found");
+      return;
+    }
+
+    riveInstance.play(drinkingAnim.name); // temporarily play to cache, then pause
+    riveInstance.pause();
+    riveInstance.animationFrame = 0;
+    riveInstance.drawFrame();
+
+    console.log("🎬 Ready to scrub 'drinking2'");
+  },
+  onInit: (instance) => {
+    riveInstance = instance;
+  }
+});
+
+// Pointer down starts dragging
+canvas.addEventListener('pointerdown', (e) => {
+  if (!drinkingAnim) return;
+  isDragging = true;
+  lastY = e.clientY;
+});
+
+// Pointer move scrubs the animation
+canvas.addEventListener('pointermove', (e) => {
+  if (!isDragging || !drinkingAnim) return;
+  const dy = lastY - e.clientY;
+  lastY = e.clientY;
+
+  const delta = dy * 0.01;
+  currentFrame = Math.max(0, Math.min(currentFrame + delta, drinkingAnim.duration));
+  riveInstance.animationFrame = currentFrame;
+  riveInstance.drawFrame();
+
+  console.log(`🌀 Frame: ${currentFrame.toFixed(2)} / ${drinkingAnim.duration.toFixed(2)}`);
+});
+
+// Pointer up stops
+canvas.addEventListener('pointerup', () => {
+  isDragging = false;
+});
+</script>
+
+</body>
+</html>

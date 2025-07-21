@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no">
+  <title>Fortune Coffee</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%; background: #6D705D;
+    }
+    body {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
+    #riveCanvas {
+      width: 100%;
+      height: 711px;
+      max-width: 400px;
+      background: #6D705D;
+      display: none;
+    }
+    #actionButton {
+      margin-top: 20px;
+      padding: 15px 25px;
+      font-size: 20px;
+      background: #fff;
+      color: #333;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: none;
+    }
+    #loading {
+      font-size: 24px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loading">Loading fortune...</div>
+  <canvas id="riveCanvas" width="360" height="640"></canvas>
+  <button id="actionButton">Loading...</button>
+
+  <script src="https://unpkg.com/@rive-app/canvas"></script>
+
+<script>
+let inputs = {};
+const canvas = document.getElementById("riveCanvas");
+const actionButton = document.getElementById("actionButton");
+const loading = document.getElementById("loading");
+
+const inputSequence = [
+  { name: 'isdrinking', label: 'Drink your coffee' },
+  { name: 'finishdrinking', label: "You're done" },
+  { name: 'isturning', label: 'Turn the cup down' },
+  { name: 'iswaiting', label: "Let's wait..." },
+  { name: 'isreading', label: 'Read your fortune' },
+  { name: 'issymbol', label: 'Ready?' }
+];
+
+let currentIndex = 0;
+
+const riveInstance = new rive.Rive({
+  src: 'fortune_coffee_full.riv',
+  canvas: canvas,
+  artboard: 'Main',
+  stateMachines: ['coffee'],
+  autoplay: true,
+  onLoad() {
+    console.log("Rive loaded");
+    setupInputs();
+    loading.style.display = 'none';
+    canvas.style.display = 'block';
+    actionButton.style.display = 'block';
+    updateButton();
+  }
+});
+
+function setupInputs() {
+  const riveInputs = riveInstance.stateMachineInputs('coffee');
+  inputs = {};
+  inputSequence.forEach(input => {
+    inputs[input.name] = riveInputs.find(i => i.name === input.name);
+    if (!inputs[input.name]) {
+      console.warn(`${input.name} input not found`);
+    }
+  });
+}
+
+function updateButton() {
+  const current = inputSequence[currentIndex];
+  actionButton.textContent = current.label;
+}
+
+function clearAllInputs() {
+  Object.values(inputs).forEach(input => {
+    if (input) input.value = false;
+  });
+}
+
+actionButton.addEventListener('click', () => {
+  clearAllInputs();
+
+  const currentInput = inputs[inputSequence[currentIndex].name];
+  if (currentInput) currentInput.value = true;
+
+  console.log(`${inputSequence[currentIndex].name} = true`);
+
+  currentIndex++;
+  if (currentIndex >= inputSequence.length) {
+    console.log('Sequence complete, resetting...');
+    riveInstance.reset();
+    setupInputs();  // Re-fetch inputs after reset
+    currentIndex = 0;
+  }
+
+  updateButton();
+});
+</script>
+
+</body>
+</html>
