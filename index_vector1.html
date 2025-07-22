@@ -85,7 +85,7 @@ function loadStateMachine(name) {
   console.log(` Loaded ${name}`);
   inputs = Object.fromEntries(riveInstance.stateMachineInputs(name).map(i => [i.name, i]));
   lift = inputs.lift;
-  toOne = inputs["to-one"];
+  toOne = inputs["to-one"]; 
   rise = inputs.rise;
   curious = inputs.curious;
 
