@@ -48,12 +48,14 @@ h2 {
 <script src="https://unpkg.com/@rive-app/webgl2"></script>
 <script>
 const riveCanvas = document.getElementById('riveCanvas');
+const particlesCanvas = document.getElementById('canvas');
 const status = document.getElementById('status');
 const nextBtn = document.getElementById('nextBtn');
 const dpr = window.devicePixelRatio || 1;
 
 riveCanvas.width = window.innerWidth * dpr;
 riveCanvas.height = window.innerHeight * dpr;
+const sequence = ["Idle", "To Bottom", "Rotating", "Reveal"];
  const customMessages = { 
   "Idle": "Swipe down",
   "To Bottom": "Turning the cup...",
@@ -61,7 +63,7 @@ riveCanvas.height = window.innerHeight * dpr;
   "Reveal": "Swipe down to reveal your fortune",
   "Exit": "Transitioning…"
 };
-const sequence = ["Idle", "To Bottom", "Rotating", "Reveal"];
+
 let index = 0, riveInstance, inputs = {}, isDragging = false, startY = 0;
 let lift, toOne, rise, curious, exitHandled = false, particlesStarted = false;
 
@@ -79,37 +81,82 @@ function loadStateMachine(name) {
     autoplay: true,
     fit: rive.Fit.Cover,
     devicePixelRatio: dpr,
-    onLoad: () => {
-      console.log(` Loaded ${name}`);
-      inputs = Object.fromEntries(riveInstance.stateMachineInputs(name).map(i => [i.name, i]));
-      lift = inputs.lift;
-      toOne = inputs["to-one"];
-      rise = inputs.rise;
-      curious = inputs.curious;
-    },
+   onLoad: () => {
+  console.log(` Loaded ${name}`);
+  inputs = Object.fromEntries(riveInstance.stateMachineInputs(name).map(i => [i.name, i]));
+  lift = inputs.lift;
+  toOne = inputs["to-one"];
+  rise = inputs.rise;
+  curious = inputs.curious;
+
+  // Listen for state changes here:
+  riveInstance.on("statechange", (event) => {
+    const states = event.data;
+    console.log(`🔁 Active states:`, states);
+
+    let updated = false;
+    for (let state of states) {
+      if (customMessages[state]) {
+        status.textContent = customMessages[state];
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      status.textContent = "Your Fortune Awaits";
+    }
+
+    if (states.includes("Exit") && !exitHandled) {
+      console.log(`🚪 Exit detected — handling exit`);
+      exitHandled = true;
+      riveInstance.pause();
+
+      if (name === "Reveal") {
+        status.textContent = "Reveal: Swipe to interact";
+      } else {
+        status.textContent = "Done. Click Next";
+        nextBtn.style.display = "block";
+      }
+    }
+  });
+},
 onStateChange: (event) => {
   const states = event.data;
-  console.log(`🔁 ${name} active states:`, states);
-for (let state of states) {
+
+
+ 
+  console.log(`🔁 Active states:`, states);
+  // Update status text based on first active state
+  let updated = false;
+  for (let state of states) {
     if (customMessages[state]) {
       status.textContent = customMessages[state];
+      updated = true;
       break;
     }
   }
 
+  // Optional fallback text
+  if (!updated) {
+    status.textContent = "Your Fortune Awaits";
+  }
+
+  // Handle Exit state logic
   if (states.includes("Exit") && !exitHandled) {
-    console.log(`🚪 '${name}' exited — handling exit...`);
+    console.log(`🚪 Exit detected — handling exit`);
     exitHandled = true;
     riveInstance.pause();
 
     if (name === "Reveal") {
       status.textContent = "Reveal: Swipe to interact";
     } else {
-      status.textContent = `${name} done, click Next`;
+    
       nextBtn.style.display = "block";
+  
     }
   }
 },
+
 
     onError: (err) => {
       console.error("❌ Rive failed to load:", err);
@@ -325,7 +372,7 @@ window.addEventListener('resize', () => {
   riveCanvas.height = window.innerHeight * dpr;
   riveCanvas.style.width = window.innerWidth + "px";
   riveCanvas.style.height = window.innerHeight + "px";
-  //particlesCanvas.width = window.innerWidth;
+  particlesCanvas.width = window.innerWidth;
   particlesCanvas.height = window.innerHeight;
 });
 </script>
