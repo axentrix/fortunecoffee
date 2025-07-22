@@ -57,11 +57,11 @@ riveCanvas.width = window.innerWidth * dpr;
 riveCanvas.height = window.innerHeight * dpr;
 const sequence = ["Idle", "To Bottom", "Rotating", "Reveal"];
  const customMessages = { 
-  "Idle": "Swipe down",
-  "To Bottom": "Turning the cup...",
-  "Rotating": "Your fortune is working",
-  "Reveal": "Swipe down to reveal your fortune",
-  "Exit": "Transitioning…"
+  "idle": "Swipe down",
+  "to bottom": "Turning the cup...",
+  "rotating": "Your fortune is working",
+  "reveal": "Swipe down to reveal your fortune",
+  "exit": "Transitioning…"
 };
 
 let index = 0, riveInstance, inputs = {}, isDragging = false, startY = 0;
@@ -89,59 +89,35 @@ function loadStateMachine(name) {
   rise = inputs.rise;
   curious = inputs.curious;
 
-  // Listen for state changes here:
-  riveInstance.on("statechange", (event) => {
-    const states = event.data;
-    console.log(`🔁 Active states:`, states);
-
-    let updated = false;
-    for (let state of states) {
-      if (customMessages[state]) {
-        status.textContent = customMessages[state];
-        updated = true;
-        break;
-      }
-    }
-    if (!updated) {
-      status.textContent = "Your Fortune Awaits";
-    }
-
-    if (states.includes("Exit") && !exitHandled) {
-      console.log(`🚪 Exit detected — handling exit`);
-      exitHandled = true;
-      riveInstance.pause();
-
-      if (name === "Reveal") {
-        status.textContent = "Reveal: Swipe to interact";
-      } else {
-        status.textContent = "Done. Click Next";
-        nextBtn.style.display = "block";
-      }
-    }
-  });
-},
+   },
 onStateChange: (event) => {
   const states = event.data;
+  console.log(`Active states:`, event.data);
 
-
- 
-  console.log(`🔁 Active states:`, states);
-  // Update status text based on first active state
   let updated = false;
   for (let state of states) {
+     console.log("state:", state, "customMessages[state]:", customMessages[state]);
     if (customMessages[state]) {
-      status.textContent = customMessages[state];
+      if (state === "Reveal") {
+        status.textContent = "Swipe down";
+        nextBtn.style.display = "none";  // hide Next button on Reveal
+        nextBtn.textContent = "";
+      } else {
+        status.textContent = customMessages[state];
+        nextBtn.textContent = customMessages[state];
+        nextBtn.style.display = "flex";  // show Next button for other states
+      }
       updated = true;
       break;
     }
   }
 
-  // Optional fallback text
   if (!updated) {
     status.textContent = "Your Fortune Awaits";
+    nextBtn.textContent = "Next";
+    nextBtn.style.display = "flex";  // show Next button by default
   }
 
-  // Handle Exit state logic
   if (states.includes("Exit") && !exitHandled) {
     console.log(`🚪 Exit detected — handling exit`);
     exitHandled = true;
@@ -149,13 +125,14 @@ onStateChange: (event) => {
 
     if (name === "Reveal") {
       status.textContent = "Reveal: Swipe to interact";
+      nextBtn.style.display = "none";  // keep Next hidden on Reveal Exit
     } else {
-    
-      nextBtn.style.display = "block";
-  
+      nextBtn.style.display = "flex";  // show Next button on other Exit
     }
   }
 },
+
+
 
 
     onError: (err) => {
