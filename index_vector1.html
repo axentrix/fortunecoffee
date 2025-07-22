@@ -26,36 +26,45 @@ h2 {
   font-size: 36px;
   margin-top: 20px;
 }
+.holder{
+    display:flex;
+    width:100%;
+    position:relative;
+    z-index:800;
+    justify-content: center;
+    align-items: center;
+    flex-direction:column;
+    gap:44px;
+}
 </style>
 </head>
 <body>
-
+<div class="holder">
 <h2 id="status">Swipe Down to Start</h2>
+<a id="nextBtn" style="display:flex; cursor:pointer; max-width:200px; justify-content:center; align-items:center; position:relative;  z-index:9999; background:#333331; font-family:'Oleo Script Swash Caps'; color:#ffffff; padding:10px; border-radius:5px;">Next</a>
+</div>
 <canvas id="riveCanvas"></canvas>
 <canvas id="canvas"></canvas>
-
 <script src="https://unpkg.com/@rive-app/webgl2"></script>
 <script>
 const riveCanvas = document.getElementById('riveCanvas');
-const particlesCanvas = document.getElementById('particlesCanvas');
 const status = document.getElementById('status');
+const nextBtn = document.getElementById('nextBtn');
 const dpr = window.devicePixelRatio || 1;
 
 riveCanvas.width = window.innerWidth * dpr;
 riveCanvas.height = window.innerHeight * dpr;
-riveCanvas.style.width = window.innerWidth + "px";
-riveCanvas.style.height = window.innerHeight + "px";
 
-let riveInstance, currentSM = "Idle";
-let inputs = {};
-let lift, toOne, rise, curious;
-let particlesStarted = false;
+const sequence = ["Idle", "To Bottom", "Rotating", "Reveal"];
+let index = 0, riveInstance, inputs = {}, isDragging = false, startY = 0;
+let lift, toOne, rise, curious, exitHandled = false, particlesStarted = false;
 
 function loadStateMachine(name) {
-  console.log(`Loading State Machine: ${name}`);
-  status.textContent = `State Machine: ${name}`;
+  console.log("Loading:", name);
   if (riveInstance) riveInstance.cleanup();
+  status.textContent = `Playing: ${name}`;
 
+  exitHandled = false;
   riveInstance = new rive.Rive({
     src: "fortune_coffee_new.riv",
     canvas: riveCanvas,
@@ -65,73 +74,83 @@ function loadStateMachine(name) {
     fit: rive.Fit.Cover,
     devicePixelRatio: dpr,
     onLoad: () => {
-      console.log(`✅ Loaded ${name}`);
-      currentSM = name;
-      inputs = {};
-      riveInstance.stateMachineInputs(name).forEach(i => inputs[i.name] = i);
+      console.log(` Loaded ${name}`);
+      inputs = Object.fromEntries(riveInstance.stateMachineInputs(name).map(i => [i.name, i]));
+      lift = inputs.lift;
+      toOne = inputs["to-one"];
+      rise = inputs.rise;
+      curious = inputs.curious;
+    },
+onStateChange: (event) => {
+  const states = event.data;
+  console.log(`🔁 ${name} active states:`, states);
 
-      lift = inputs['lift'];
-      toOne = inputs['to-one'];
-      rise = inputs['rise'];
-      curious = inputs['curious'];
-      particlesStarted = false;
+  if (states.includes("Exit") && !exitHandled) {
+    console.log(`🚪 '${name}' exited — handling exit...`);
+    exitHandled = true;
+    riveInstance.pause();
+
+    if (name === "Reveal") {
+      status.textContent = "Reveal: Swipe to interact";
+    } else {
+      status.textContent = `${name} done, click Next`;
+      nextBtn.style.display = "block";
+    }
+  }
+},
+
+    onError: (err) => {
+      console.error("❌ Rive failed to load:", err);
     }
   });
+
+    riveCanvas.addEventListener("pointerup", () => {
+  if (lift?.value >= 100) {
+    console.log("🖐 Lift is high enough → to-one = true");
+    toOne.value = true;
+  } else {
+    console.log("⬆️ Lift below threshold, to-one not triggered");
+  }
+});
+ 
+  
 }
 
-loadStateMachine("Idle");
-
-let isDragging = false, startY = 0, deltaY = 0;
+nextBtn.addEventListener("click", () => {
+  index++;
+  if (index < sequence.length) loadStateMachine(sequence[index]);
+  else status.textContent = "All finished";
+});
 
 riveCanvas.addEventListener("pointerdown", e => {
+  if (!["Idle", "Reveal"].includes(sequence[index])) return;
   isDragging = true;
   startY = e.clientY;
 });
 
 riveCanvas.addEventListener("pointermove", e => {
   if (!isDragging) return;
-  deltaY = e.clientY - startY;
-
-  if (currentSM === "Idle" && lift) {
-    lift.value = Math.max(0, Math.min(100, deltaY * 0.5));
-  }
-
-  if (currentSM === "Reveal" && rise) {
-    rise.value = Math.max(0, Math.min(100, deltaY * 0.5));
-    if (rise.value >= 50 && !particlesStarted) {
-      particlesStarted = true;
-      startParticles();
-      console.log("🎉 Particles started");
-    }
+  const delta = e.clientY - startY;
+  if (sequence[index] === "Idle" && lift) lift.value = Math.max(0, Math.min(100, delta * 0.5));
+  if (sequence[index] === "Reveal" && rise) {
+    rise.value = Math.max(0, Math.min(100, delta * 0.5));
+    if (rise.value >= 50 && !particlesStarted) { particlesStarted = true; startParticles(); }
   }
 });
 
-riveCanvas.addEventListener("pointerup", e => {
-  if (!isDragging) return;
-  isDragging = false;
-
-  if (currentSM === "Idle" && toOne) {
+riveCanvas.addEventListener("pointerup", () => {
+  if (!isDragging) return; isDragging = false;
+  if (sequence[index] === "Idle" && lift?.value >= 50 && toOne) {
     toOne.value = true;
-    console.log("✅ to-one true");
-    setTimeout(() => loadStateMachine("To Bottom"), 800);
+    setTimeout(() => nextBtn.click(), 800);
   }
-
-  if (currentSM === "To Bottom") {
-    console.log("➡️ To Bottom → Reveal");
-    loadStateMachine("Reveal");
-  }
-
-  if (currentSM === "Reveal" && curious) {
-    curious.value = true;
-    console.log("✅ curious true");
-  }
-
-  if (lift) lift.value = 0;
-  if (rise) rise.value = 0;
+  if (sequence[index] === "Reveal" && rise?.value >= 50 && curious) curious.value = true;
 });
+
+loadStateMachine(sequence[index]);
 
 function startParticles() {
- const canvas = document.getElementById('canvas');
+  const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -139,10 +158,13 @@ function startParticles() {
   let particlesArray = [];
   const particleSize = 1.4;
   const particleSpacing = 1.8;
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const maxRadius = Math.min(canvas.width, canvas.height) * 0.4; // 80% circle radius
   const mouse = { x: null, y: null, radius: 70 };
   let currentPhase = 1;
 
-  window.addEventListener('mousemove', function(event) {
+  window.addEventListener('mousemove', function (event) {
     mouse.x = event.x;
     mouse.y = event.y;
   });
@@ -153,30 +175,17 @@ function startParticles() {
       this.baseY = targetY;
       this.offsetX = (Math.random() - 0.5) * 15;
       this.offsetY = (Math.random() - 0.5) * 15;
-      this.x = Math.random() * canvas.width;
-      this.y = Math.random() * canvas.height;
-      this.targetCircleX = canvas.width / 2;
-      this.targetCircleY = canvas.height / 2;
-      this.targetCircleRadius = 150;
-      this.orbitCenterX = null;
-      this.orbitCenterY = null;
-      this.angle = Math.random() * Math.PI * 2;
-      this.radius = 20 + Math.random() * 30;
-      this.angularVelocity = 0.05 + Math.random() * 0.03;
+
+      // Start within 80% circle with random angle & radius
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.random() * maxRadius;
+      this.x = centerX + radius * Math.cos(angle);
+      this.y = centerY + radius * Math.sin(angle);
+
       this.size = particleSize;
       this.color = '#000';
       this.density = Math.random() * 30 + 1;
-      this.speed = 0.015 + Math.random() * 0.02;
-    }
-
-    initOrbitTarget() {
-      const t = 2 * Math.PI * Math.random();
-      const u = Math.random() + Math.random();
-      const r = u > 1 ? 2 - u : u;
-      this.orbitCenterX = this.targetCircleX + this.targetCircleRadius * r * Math.cos(t);
-      this.orbitCenterY = this.targetCircleY + this.targetCircleRadius * r * Math.sin(t);
-      this.angle = Math.random() * Math.PI * 2;
-      this.radius = 20 + Math.random() * 30;
+      this.speed = 0.02 + Math.random() * 0.03;
     }
 
     draw() {
@@ -187,41 +196,18 @@ function startParticles() {
     }
 
     update() {
-      if (this.orbitCenterX === null || this.orbitCenterY === null) this.initOrbitTarget();
-
       if (currentPhase === 1) {
-        const dx = this.orbitCenterX - this.x;
-        const dy = this.orbitCenterY - this.y;
+        // Move to center
+        const dx = centerX - this.x;
+        const dy = centerY - this.y;
         this.x += dx * this.speed;
         this.y += dy * this.speed;
-      } else if (currentPhase === 2) {
-        this.angle += this.angularVelocity;
-        this.radius += 0.1;
-        this.x = this.orbitCenterX + Math.cos(this.angle) * this.radius;
-        this.y = this.orbitCenterY + Math.sin(this.angle) * this.radius;
       } else if (currentPhase === 3) {
-        if (mouse.x === null || mouse.y === null) {
-          let dxBase = this.x - (this.baseX + this.offsetX);
-          let dyBase = this.y - (this.baseY + this.offsetY);
-          this.x -= dxBase / 10;
-          this.y -= dyBase / 10;
-          return;
-        }
-        let dx = mouse.x - this.x;
-        let dy = mouse.y - this.y;
-        let distance = Math.hypot(dx, dy) || 1;
-        let force = (mouse.radius - distance) / mouse.radius;
-        let directionX = (dx / distance) * force * this.density;
-        let directionY = (dy / distance) * force * this.density;
-        if (distance < mouse.radius) {
-          this.x -= directionX;
-          this.y -= directionY;
-        } else {
-          let dxBase = this.x - (this.baseX + this.offsetX);
-          let dyBase = this.y - (this.baseY + this.offsetY);
-          this.x -= dxBase / 10;
-          this.y -= dyBase / 10;
-        }
+        // Move to base + offset
+        let dxBase = this.x - (this.baseX + this.offsetX);
+        let dyBase = this.y - (this.baseY + this.offsetY);
+        this.x -= dxBase / 10;
+        this.y -= dyBase / 10;
       }
     }
   }
@@ -263,18 +249,27 @@ function startParticles() {
       minX = Math.min(minX, px); maxX = Math.max(maxX, pX);
       minY = Math.min(minY, py); maxY = Math.max(maxY, pY);
     });
+
     const offsetX = (canvas.width - (maxX - minX)) / 2 - minX;
     const offsetY = (canvas.height - (maxY - minY)) / 2 - minY;
     allPositions = allPositions.map(p => ({ x: p.x + offsetX, y: p.y + offsetY }));
-    allPositions.forEach(pos => particlesArray.push(new Particle(pos.x, pos.y)));
 
-    setTimeout(() => currentPhase = 2, 6000);  // long first phase (6 seconds)
-    setTimeout(() => currentPhase = 3, 7000);  // short orbit phase (1 second)
+    allPositions.forEach(pos => {
+      particlesArray.push(new Particle(pos.x, pos.y));
+    });
+
+    // Skip orbit — reveal shape after 2 seconds
+    setTimeout(() => {
+      currentPhase = 3;
+    }, 2000);
   }
 
   function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particlesArray.forEach(p => { p.draw(); p.update(); });
+    particlesArray.forEach(p => {
+      p.draw();
+      p.update();
+    });
     requestAnimationFrame(animate);
   }
 
@@ -286,7 +281,6 @@ function startParticles() {
     canvas.height = window.innerHeight;
     init();
   });
-
 }
 
 window.addEventListener('resize', () => {
@@ -294,7 +288,7 @@ window.addEventListener('resize', () => {
   riveCanvas.height = window.innerHeight * dpr;
   riveCanvas.style.width = window.innerWidth + "px";
   riveCanvas.style.height = window.innerHeight + "px";
-  particlesCanvas.width = window.innerWidth;
+  //particlesCanvas.width = window.innerWidth;
   particlesCanvas.height = window.innerHeight;
 });
 </script>
