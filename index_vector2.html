@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Swipe + Particles Trigger</title>
+<title>My Fortune Coffee</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Advent+Pro:ital,wght@0,100..900;1,100..900&family=Oleo+Script+Swash+Caps:wght@400;700&display=swap');
 
@@ -39,13 +39,18 @@ h2 {
 </style>
 </head>
 <body>
+  <!-- Loader -->
+<div id="loader" style="position: fixed; inset: 0; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999;">
+  <h2>Loading...</h2>
+</div>
 <div class="holder">
-<h2 id="status">Swipe Down to Start</h2>
-<a id="nextBtn" style="display:flex; cursor:pointer; max-width:200px; justify-content:center; align-items:center; position:relative;  z-index:9999; background:#333331; font-family:'Oleo Script Swash Caps'; color:#ffffff; padding:10px; border-radius:5px;">Next</a>
+<h2 id="status"></h2>
+<a id="nextBtn" style="display:flex; cursor:pointer; max-width:200px; justify-content:center; align-items:center; position:relative;  z-index:9999; background:#333331; font-family:'Oleo Script Swash Caps'; color:#ffffff; padding:10px; border-radius:5px;">Go</a>
 </div>
 <canvas id="riveCanvas"></canvas>
 <canvas id="canvas"></canvas>
 <script src="https://unpkg.com/@rive-app/webgl2"></script>
+
 <script>
 const riveCanvas = document.getElementById('riveCanvas');
 const particlesCanvas = document.getElementById('canvas');
@@ -55,136 +60,185 @@ const dpr = window.devicePixelRatio || 1;
 
 riveCanvas.width = window.innerWidth * dpr;
 riveCanvas.height = window.innerHeight * dpr;
-const sequence = ["Idle", "To Bottom", "Rotating", "Reveal"];
- const customMessages = { 
-  "idle": "Swipe down",
-  "to bottom": "Turning the cup...",
-  "rotating": "Your fortune is working",
-  "reveal": "Swipe down to reveal your fortune",
-  "exit": "Transitioning…"
-};
 
-let index = 0, riveInstance, inputs = {}, isDragging = false, startY = 0;
-let lift, toOne, rise, curious, exitHandled = false, particlesStarted = false;
+let riveInstance, inputs = {}, isDragging = false, particlesStarted = false;
+let lift, toOne, toExit, rise, curious;
+let currentMachine = "Idle";
+
+// CSS scaling class
+const pressedClass = 'pressed';
+const style = document.createElement("style");
+style.textContent = `
+  .pressed {
+    transform: scale(1.2);
+    transition: transform 0.2s ease;
+  }
+`;
+document.head.appendChild(style);
+
+function switchTo(machineName) {
+  currentMachine = machineName;
+  loadStateMachine(machineName);
+}
 
 function loadStateMachine(name) {
   console.log("Loading:", name);
   if (riveInstance) riveInstance.cleanup();
-  status.textContent = `Your Fortune Awaits`;
 
-  exitHandled = false;
   riveInstance = new rive.Rive({
-    src: "19_Aug/fortune_coffee.riv",
+    src: "19_Aug/fortune_coffee_new.riv",
     canvas: riveCanvas,
     artboard: "Main",
     stateMachines: name,
     autoplay: true,
     fit: rive.Fit.Cover,
     devicePixelRatio: dpr,
-   onLoad: () => {
-  console.log(` Loaded ${name}`);
-  inputs = Object.fromEntries(riveInstance.stateMachineInputs(name).map(i => [i.name, i]));
-  lift = inputs.lift;
-  toOne = inputs["to-one"]; 
-  rise = inputs.rise;
-  curious = inputs.curious;
-
-   },
-onStateChange: (event) => {
-  const states = event.data;
-  console.log(`Active states:`, event.data);
-
-  let updated = false;
-  for (let state of states) {
-     console.log("state:", state, "customMessages[state]:", customMessages[state]);
-    if (customMessages[state]) {
-      if (state === "Reveal") {
-        status.textContent = "Swipe down";
-        nextBtn.style.display = "none";  // hide Next button on Reveal
-        nextBtn.textContent = "";
-      } else {
-        status.textContent = customMessages[state];
-        nextBtn.textContent = customMessages[state];
-        nextBtn.style.display = "flex";  // show Next button for other states
-      }
-      updated = true;
-      break;
-    }
-  }
-
-  if (!updated) {
-    status.textContent = "Swipe down to activate fortune";
-    nextBtn.textContent = "Next";
-    nextBtn.style.display = "flex";  // show Next button by default
-  }
-
-  if (states.includes("Exit") && !exitHandled) {
-    console.log(`🚪 Exit detected — handling exit`);
-    exitHandled = true;
-    riveInstance.pause();
-
-    if (name === "reveal") {
-      status.textContent = "Reveal: Swipe to interact";
-      nextBtn.style.display = "none";  // keep Next hidden on Reveal Exit
-    } else {
-      nextBtn.style.display = "flex";  // show Next button on other Exit
-    }
-  }
-},
-
-
-
-
-    onError: (err) => {
-      console.error("❌ Rive failed to load:", err);
-    }
+    onLoad: () => {
+       loader.style.display = "none";
+    riveCanvas.style.display = "block";
+      console.log(`Loaded ${name}`);
+      inputs = Object.fromEntries(riveInstance.stateMachineInputs(name).map(i => [i.name, i]));
+      lift = inputs.lift;
+      toOne = inputs["to-one"];
+      toExit = inputs["to-exit"];
+      
+      rise = inputs.rise;
+      curious = inputs.curious;
+    },
+    onStateChange: (event) => {
+      const states = event.data;
+      console.log(`State changed to:`, states);
+    },
+    onError: (err) => console.error("Rive Load Error:", err)
   });
-
-    riveCanvas.addEventListener("pointerup", () => {
-  if (lift?.value >= 100) {
-    console.log("🖐 Lift is high enough → to-one = true");
-    toOne.value = true;
-  } else {
-    console.log("⬆️ Lift below threshold, to-one not triggered");
-  }
-});
- 
-  
 }
 
-nextBtn.addEventListener("click", () => {
-  index++;
-  if (index < sequence.length) loadStateMachine(sequence[index]);
-  else status.textContent = "All finished";
-});
+function handleIdleRelease() {
+  if (lift.value >= 100) {
+    console.log("🎯 Lift full, setting to-exit");
+    toExit.value = true;
+    setTimeout(() => {
+      switchTo("To Bottom");
+      setTimeout(() => {
+        status.textContent = "Your fortune is ready";
+        nextBtn.textContent = "Unveil";
+        nextBtn.style.display = "flex";
+      }, 3000);
+    }, 100);
+  } else {
+    console.log("🔁 Lift too low, resetting");
+    switchTo("Idle");
+    lift.value = 1;
+  }
+}
 
-riveCanvas.addEventListener("pointerdown", e => {
-  if (!["Idle", "Reveal"].includes(sequence[index])) return;
+nextBtn.addEventListener("pointerdown", () => {
+  nextBtn.classList.add(pressedClass);
   isDragging = true;
-  startY = e.clientY;
-});
 
-riveCanvas.addEventListener("pointermove", e => {
-  if (!isDragging) return;
-  const delta = e.clientY - startY;
-  if (sequence[index] === "Idle" && lift) lift.value = Math.max(0, Math.min(100, delta * 0.5));
-  if (sequence[index] === "Reveal" && rise) {
-    rise.value = Math.max(0, Math.min(100, delta * 0.5));
-    if (rise.value >= 50 && !particlesStarted) { particlesStarted = true; startParticles(); }
+  // ✨ Switch to Reveal mode from "Unveil" state
+  if (nextBtn.textContent === "Unveil") {
+    switchTo("Reveal");
+    status.textContent = "Hold to reveal";
+    nextBtn.textContent = "Reveal";
+    return;
   }
-});
 
-riveCanvas.addEventListener("pointerup", () => {
-  if (!isDragging) return; isDragging = false;
-  if (sequence[index] === "Idle" && lift?.value >= 50 && toOne) {
+  // 🥤 Idle logic – Drinking
+  if (currentMachine === "Idle" && toOne && toExit && lift) {
     toOne.value = true;
-    setTimeout(() => nextBtn.click(), 800);
+    lift.value = 1;
+    status.textContent = "Drinking...";
+    nextBtn.textContent = "Drinking...";
+    const liftInterval = setInterval(() => {
+      if (!isDragging || lift.value >= 100) return clearInterval(liftInterval);
+  
+      lift.value += 4;
+    
+          nextBtn.textContent = "Waiting...";
+         
+    }, 50);
   }
-  if (sequence[index] === "Reveal" && rise?.value >= 50 && curious) curious.value = true;
+if (currentMachine === "Idle" && lift.value >= 100) {
+  toExit.value = true;
+
+  // Start 2-second timer before switching to Reveal
+  setTimeout(() => {
+    if (currentMachine === "To Bottom") { // optional, to ensure state change
+      // Switch to Reveal machine
+      riveInstance.stateMachine = "Reveal";
+      currentMachine = "Reveal";
+
+      // Rebind inputs for Reveal
+      riveInstance.stateMachineInputs("Reveal").forEach(input => {
+        if (input.name === "rise") rise = input;
+        if (input.name === "curious") curious = input;
+      });
+
+      console.log("Switched to Reveal state machine");
+    }
+  }, 2000);
+}
+  // 🌟 Reveal logic – Holding triggers lift and particles
+  if (currentMachine === "Reveal" && rise) {
+    rise.value = 1;
+    const liftInterval = setInterval(() => {
+      if (!isDragging || rise.value >= 100) return clearInterval(liftInterval);
+      rise.value += 10;
+      if (rise.value >= 70 && !particlesStarted) {
+        particlesStarted = true;
+        startParticles();
+      }
+    }, 50);
+  }
 });
 
-loadStateMachine(sequence[index]);
+nextBtn.addEventListener("pointerup", () => {
+  isDragging = false;
+  nextBtn.classList.remove(pressedClass);
 
+  if (currentMachine === "Idle") {
+    if (lift && lift.value < 80) {
+      const downInterval = setInterval(() => {
+        if (isDragging || lift.value <= 0) {
+          clearInterval(downInterval);
+          lift.value = 0;
+          return;
+        }
+        lift.value -= 10;
+      }, 30);
+    } else {
+      handleIdleRelease();
+    }
+  }
+
+  if (currentMachine === "Reveal" && rise) {
+    if (rise.value < 80) {
+      const downInterval = setInterval(() => {
+        if (isDragging || rise.value <= 0) {
+          clearInterval(downInterval);
+          rise.value = 0;
+          return;
+        }
+        rise.value -= 10;
+      }, 30);
+    } else if (rise.value >= 70 && curious) {
+      curious.value = true;
+    }
+  }
+});
+
+
+switchTo("Idle");
+
+window.addEventListener('resize', () => {
+  riveCanvas.width = window.innerWidth * dpr;
+  riveCanvas.height = window.innerHeight * dpr;
+  riveCanvas.style.width = window.innerWidth + "px";
+  riveCanvas.style.height = window.innerHeight + "px";
+  particlesCanvas.width = window.innerWidth;
+  particlesCanvas.height = window.innerHeight;
+});
 function startParticles() {
  const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
@@ -344,14 +398,8 @@ function startParticles() {
 
 }
 
-window.addEventListener('resize', () => {
-  riveCanvas.width = window.innerWidth * dpr;
-  riveCanvas.height = window.innerHeight * dpr;
-  riveCanvas.style.width = window.innerWidth + "px";
-  riveCanvas.style.height = window.innerHeight + "px";
-  particlesCanvas.width = window.innerWidth;
-  particlesCanvas.height = window.innerHeight;
-});
 </script>
+
+
 </body>
 </html>
