@@ -224,12 +224,10 @@ nextBtn.addEventListener("pointerdown", () => {
     if (currentMachine === "Reveal" && nextBtn.textContent === "Reveal" &&  curious.value==true ) {
     if (rise) rise.value = 0; // reset rise on press
     riseInterval = setInterval(() => {
-      if (rise && rise.value < 100) {
-        rise.value += 1;
-      } else {
-        clearInterval(riseInterval); // stop at 100
-      }
-    }, 20); // speed can be adjusted
+        if (!isDragging || rise.value >= 100) return clearInterval(liftInterval);
+      rise.value += 4;
+    }, 50);
+   
   }
 })
 
