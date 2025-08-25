@@ -72,6 +72,14 @@ pointer-events: none;
     transform: scale(1.2);
     border: 6px solid #3C3C3C
 }
+
+#status {
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+#status.hidden {
+  opacity: 0;
+}
 </style>
 </head>
 <body>
@@ -163,6 +171,7 @@ nextBtn.classList.add("disabled");
 
     setTimeout(() => {
     nextBtn.classList.remove("disabled");
+    status.textContent = "Your fortune is ready.";
       nextBtn.innerText = "Reveal";
     }, 2000);
   }
@@ -220,11 +229,26 @@ nextBtn.addEventListener("pointerdown", () => {
 
   // Reveal logic - holding triggers rise increment & curious set after 3s
    if (currentMachine === "Reveal" && nextBtn.textContent === "Reveal" ) {
-   curious.value=true}
+   curious.value=true;
+  status.classList.add('hidden');
+  
+  }
     if (currentMachine === "Reveal" && nextBtn.textContent === "Reveal" &&  curious.value==true ) {
     if (rise) rise.value = 0; // reset rise on press
     riseInterval = setInterval(() => {
-        if (!isDragging || rise.value >= 100) return clearInterval(liftInterval);
+
+ if (rise.value >= 70 && !particlesStarted) {
+    particlesStarted = true;
+    startParticles();
+    status.textContent = "All finished";
+    setTimeout(() => status.classList.add('hidden'), 2000);
+  }
+
+  if (rise.value >= 100) {
+    clearInterval(riseInterval);
+  }
+
+        if (!isDragging || rise.value >= 100) return  clearInterval(riseInterval);
       rise.value += 4;
     }, 50);
    
@@ -310,6 +334,24 @@ function startParticles() {
     mouse.x = event.x;
     mouse.y = event.y;
   });
+window.addEventListener('touchmove', function(event) {
+  if (event.touches.length > 0) {
+    mouse.x = event.touches[0].clientX;
+    mouse.y = event.touches[0].clientY;
+  }
+}, { passive: true });
+
+window.addEventListener('touchend', function() {
+  mouse.x = null;
+  mouse.y = null;
+});
+
+window.addEventListener('touchstart', function(event) {
+  if (event.touches.length > 0) {
+    mouse.x = event.touches[0].clientX;
+    mouse.y = event.touches[0].clientY;
+  }
+}, { passive: true });
 
   class Particle {
     constructor(targetX, targetY) {
@@ -419,7 +461,15 @@ function startParticles() {
 
   async function init() {
     particlesArray = [];
-    const svgPaths = await loadSVG('symbols/eye.svg');
+    //const svgPaths = await loadSVG('symbols/fish.svg');
+    const svgFiles = [
+  'bird', 'cross', 'eye', 'fish', 'flower', 'heart',
+  'house', 'human', 'key', 'ring', 'road', 'tower'
+];
+const randomFile = svgFiles[Math.floor(Math.random() * svgFiles.length)];
+const svgPaths = await loadSVG(`symbols/${randomFile}.svg`);
+
+
     let allPositions = [], minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
     svgPaths.forEach(pathData => {
       const { positions, minX: px, maxX: pX, minY: py, maxY: pY } = getParticlePositions(pathData);
@@ -432,8 +482,8 @@ function startParticles() {
     allPositions = allPositions.map(p => ({ x: p.x + offsetX, y: p.y + offsetY }));
     allPositions.forEach(pos => particlesArray.push(new Particle(pos.x, pos.y)));
 
-    setTimeout(() => currentPhase = 2, 6000);  // long first phase (6 seconds)
-    setTimeout(() => currentPhase = 3, 7000);  // short orbit phase (1 second)
+    setTimeout(() => currentPhase = 2, 3000);  // long first phase (6 seconds)
+    setTimeout(() => currentPhase = 3, 4000);  // short orbit phase (1 second)
   }
 
   function animate() {
