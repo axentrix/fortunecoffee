@@ -46,7 +46,7 @@ height: 64px;
 flex-direction: column;
 justify-content: center;
 align-items: center;
-pointer-events:all;
+
 gap: 12px;
 cursor:poiner;
 flex-shrink: 0;
@@ -55,6 +55,25 @@ border-radius: 999px;
 border: 2px solid #525252;
 background: linear-gradient(314deg, #333331 19.82%, #626255 91.71%);
 transition:all 0.2s ease;
+}
+.primary-btn{
+display: flex;
+width: auto;
+text-decoration:none;
+height: 48px;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding:16px 4px;
+gap: 12px;
+cursor:poiner;
+flex-shrink: 0;
+font-family:'Oleo Script Swash Caps'; color:#ffffff; padding:10px;
+border-radius: 999px;
+border: 2px solid #525252;
+background: linear-gradient(314deg, #333331 19.82%, #626255 91.71%);
+transition:all 0.2s ease;
+
 }
 #nextBtn.disabled {
   background-color: #ccc;
@@ -80,6 +99,48 @@ pointer-events: none;
 #status.hidden {
   opacity: 0;
 }
+
+.popup {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  color: #111;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  padding: 20px;
+  width: 90%;
+  max-width: 320px;
+  text-align: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  font-family: system-ui, sans-serif;
+}
+.popup h2 {
+  font-family:'Oleo Script Swash Caps';
+  font-size: 24px;
+  margin-bottom: 4px;
+    color:#282823;
+}
+.popup h3 {
+    font-family:'Inter', sans-serif;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color:#282823;
+}
+.popup p {
+  font-size: 14px;
+  color: #505050;
+}
+.popup.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
 </style>
 </head>
 <body>
@@ -93,9 +154,73 @@ pointer-events: none;
 </div>
 <canvas id="riveCanvas"></canvas>
 <canvas id="canvas"></canvas>
+<div id="symbolPopup" class="popup hidden">
+  <h2 id="symbolName">Eye</h2>
+  <h3 id="symbolSubtitle">Attention</h3>
+  <p id="symbolDescription">"Someone is watching you, or you need clarity."</p>
+  <a href="" class="primary-btn" id="collectBtn"><img src="assets/images/symbol.svg" style="margin-right:4px;">Collect symbol</a>
+</div>
 <script src="https://unpkg.com/@rive-app/webgl2"></script>
 
 <script>
+
+//json data for the symbols
+const symbolData = {
+bird:{
+name: "Bird",
+subtitle:"Message",
+description:"You will receive news or information."},
+
+ring:{
+name: "Ring",
+subtitle:"Commitment",
+description:"Proposal, marriage, union."},
+eye:{
+name: "Eye",
+subtitle:"Attention",
+description:"Someone is  watching you, or you need clarity."},
+key:{
+name: "Key",
+subtitle:"Solution",
+description:"An opportunity or way out will appear."},
+heart:{
+name: "Heart",
+subtitle:"Love",
+description:"Falling in love, emotional awakening."},
+road: {
+name: "Road",
+subtitle:"Journey",
+description:"Travel, relocation, or changes."},
+cross:{
+name: "Cross",
+subtitle:"Trial",
+description:"Temporary difficulties, karmic lesson."},
+fish:{
+name: "Fish",
+subtitle:"Luck",
+description:"Money, success, prosperity."},
+flower:{
+name: "Flower",
+subtitle:"Beauty",
+description:"Inspiration, creative uplift."},
+person:{
+name: "Person",
+subtitle:"Encounter",
+description:"A new person will enter your life."},
+tower:{
+name: "Tower",
+subtitle:"Strength",
+description:"Support, authority, stability."},
+house:{
+name: "House",
+subtitle:"Family",
+description:"Protection, lineage, family ties."},
+
+};
+
+//eof json data
+
+
 const riveCanvas = document.getElementById('riveCanvas');
 const particlesCanvas = document.getElementById('canvas');
 const status = document.getElementById('status');
@@ -289,7 +414,7 @@ nextBtn.addEventListener("pointerup", () => {
       }, 30);
     } else if (rise.value >= 80 ) {
       particlesStarted = true;
-      startParticles();
+     // startParticles();
       nextBtn.classList.add("disabled");
       
       nextBtn.innerText = "Done";
@@ -323,7 +448,7 @@ function startParticles() {
   const ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-
+let particleAnimationFrame;
   let particlesArray = [];
   const particleSize = 1.4;
   const particleSpacing = 1.8;
@@ -483,7 +608,14 @@ const svgPaths = await loadSVG(`symbols/${randomFile}.svg`);
     allPositions.forEach(pos => particlesArray.push(new Particle(pos.x, pos.y)));
 
     setTimeout(() => currentPhase = 2, 3000);  // long first phase (6 seconds)
-    setTimeout(() => currentPhase = 3, 4000);  // short orbit phase (1 second)
+  setTimeout(() => {
+  currentPhase = 3;
+
+  setTimeout(() => {
+    showSymbolPopup(randomFile); // randomFile should still be in scope
+  }, 2500);
+ 
+}, 4000);  // short orbit phase (1 second)
   }
 
   function animate() {
@@ -502,6 +634,90 @@ const svgPaths = await loadSVG(`symbols/${randomFile}.svg`);
   });
 
 }
+function showSymbolPopup(symbolKey) {
+  const popup = document.getElementById("symbolPopup");
+  const data = symbolData[symbolKey];
+  if (!data) return;
+
+  document.getElementById("symbolName").textContent = data.name;
+  document.getElementById("symbolSubtitle").textContent = data.subtitle;
+  document.getElementById("symbolDescription").textContent = data.description;
+
+  popup.classList.add("show");
+
+
+}
+function fadeOutParticles() {
+  const particlesContainer = document.getElementById("canvas");
+  if (!particlesContainer) return;
+
+  particlesContainer.style.transition = "opacity 1s ease-out";
+  particlesContainer.style.opacity = 0;
+
+  // Optional: remove it from DOM after fade
+  setTimeout(() => {
+    particlesContainer.style.display = "none"; // or removeChild() if you want
+    
+  }, 1000);
+}
+
+
+const collectBtn = document.getElementById("collectBtn");
+//collectBtn.addEventListener("click",  async (e) =>  {
+   //e.preventDefault();
+  // Hide the popup
+  //const popup = document.getElementById("symbolPopup");
+  //popup.classList.remove("show");
+//console.log(riveInstance.stateMachineInputs); 
+// fadeOutParticles(); 
+// nextBtn.classList.remove("disabled");
+
+    
+   //switchTo("Idle");
+  
+
+  // Wait 2–3 seconds, then switch to Idle
+  //setTimeout(() => {
+  //  if (riveInstance && riveInstance.stateMachineInputs("Idle")) {
+   //   switchTo("Idle");
+  //  }
+  //}, 4500); // 2.5 seconds
+//});
+
+
+function updateParticles() {
+  // Clear canvas every frame to avoid trails
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Update particles array: reduce alpha, remove dead particles
+  particles = particles.filter(p => {
+    // Reduce alpha gradually
+    p.alpha -= 0.01; // Adjust fade speed here
+    if (p.alpha <= 0) {
+      return false; // Remove particle
+    }
+
+    // Draw particle with current alpha
+    ctx.globalAlpha = p.alpha;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = p.color; // e.g. 'white' or 'rgba(255,255,255,1)'
+    ctx.fill();
+    ctx.globalAlpha = 1; // reset alpha
+
+    // Update particle position if needed
+    p.x += p.vx;
+    p.y += p.vy;
+
+    return true; // Keep particle
+  });
+
+  // Request next animation frame if particles remain
+  if (particles.length > 0) {
+    requestAnimationFrame(updateParticles);
+  }
+}
+
 
 </script>
 
