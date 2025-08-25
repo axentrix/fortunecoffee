@@ -38,6 +38,7 @@ h2 {
     bottom:32px;
 }
 #nextBtn{
+position:relative;
  cursor: pointer; /* Ensures it's a pointer (hand) like a button */
  
    user-select: none;
@@ -143,7 +144,22 @@ pointer-events: none;
   pointer-events: auto;
   transform: translateX(-50%) translateY(0);
 }
+.progress-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg); /* Start from top */;
+  pointer-events: none;
+  width: 64px;
+  height: 64px;
 
+}
+
+.progress-ring__circle {
+  stroke-dasharray: 176; /* 2 * PI * r (≈ 2 * 3.14 * 28) */
+  stroke-dashoffset: 176;
+  transition: stroke-dashoffset 0.1s linear;
+}
 </style>
 </head>
 <body>
@@ -153,7 +169,9 @@ pointer-events: none;
 </div>
 <div class="holder">
 <h2 id="status"></h2>
-<a id="nextBtn" >Go</a>
+<a id="nextBtn" > <svg class="progress-ring" width="84" height="84" stroke="#ffffff" stroke-width="4" fill="transparent" r="28" cx="32" cy="32">
+    <circle class="progress-ring__circle" stroke="#fff" stroke-width="4" fill="transparent" r="28" cx="32" cy="32"/>
+  </svg> <span class="btn-label">Go</span></a>
 </div>
 <canvas id="riveCanvas"></canvas>
 <canvas id="canvas"></canvas>
@@ -295,12 +313,12 @@ function loadStateMachine(name) {
     curious = revealInputs.find(i => i.name === "curious");
 
 nextBtn.classList.add("disabled");
-      nextBtn.innerText = "Waiting...";
+      nextBtn.querySelector('.btn-label').textContent = "Waiting...";
 
     setTimeout(() => {
     nextBtn.classList.remove("disabled");
     status.textContent = "Your fortune is ready.";
-      nextBtn.innerText = "Reveal";
+      nextBtn.querySelector('.btn-label').textContent = "Reveal";
     }, 2000);
   }
 },
@@ -315,24 +333,45 @@ function handleIdleRelease() {
     toExit.value = true;
         // Update the button UI
   nextBtn.classList.add("disabled");
-    nextBtn.textContent = "Done";
+    nextBtn.querySelector('.btn-label').textContent = "Done";
   } else {
     console.log("🔁 Lift too low, resetting");
     switchTo("Idle");
     lift.value = 1;
   }
+
 }
+//circle progress logic
+let ringInterval, ringProgress = 0;
+const circle = document.querySelector('.progress-ring__circle');
+
 
 nextBtn.addEventListener("pointerdown", () => {
+
+ringProgress = 0;
+  circle.style.strokeDashoffset = 176;
+  
+  ringInterval = setInterval(() => {
+    ringProgress += 1;
+    const offset = 176 - (176 * ringProgress / 100);
+    circle.style.strokeDashoffset = offset;
+
+    if (ringProgress >= 100) {
+      clearInterval(ringInterval);
+      // Optionally trigger something when filled
+    }
+  }, 16); // ~60fps
+
+
   nextBtn.classList.add(pressedClass);
   isDragging = true;
 
   // Switch to Reveal from Waiting...
-  if (nextBtn.textContent === "Waiting...") {
+  if (nextBtn.querySelector('.btn-label').textContent === "Waiting...") {
     switchTo("Reveal");
     // Optionally update status
     // status.textContent = "Hold to reveal";
-    nextBtn.textContent = "Reveal";
+    nextBtn.querySelector('.btn-label').textContent = "Reveal";
     return;
   }
 
@@ -340,7 +379,7 @@ nextBtn.addEventListener("pointerdown", () => {
   if (currentMachine === "Idle" && toOne && toExit && lift) {
     toOne.value = true;
     lift.value = 1;
-    nextBtn.textContent = "Drinking...";
+    nextBtn.querySelector('.btn-label').textContent = "Drinking...";
 
     const liftInterval = setInterval(() => {
       if (!isDragging || lift.value >= 100) return clearInterval(liftInterval);
@@ -356,12 +395,12 @@ nextBtn.addEventListener("pointerdown", () => {
   }
 
   // Reveal logic - holding triggers rise increment & curious set after 3s
-   if (currentMachine === "Reveal" && nextBtn.textContent === "Reveal" ) {
+   if (currentMachine === "Reveal" && nextBtn.querySelector('.btn-label').textContent === "Reveal" ) {
    curious.value=true;
   status.classList.add('hidden');
   
   }
-    if (currentMachine === "Reveal" && nextBtn.textContent === "Reveal" &&  curious.value==true ) {
+    if (currentMachine === "Reveal" && nextBtn.querySelector('.btn-label').textContent === "Reveal" &&  curious.value==true ) {
     if (rise) rise.value = 0; // reset rise on press
     riseInterval = setInterval(() => {
 
@@ -384,6 +423,8 @@ nextBtn.addEventListener("pointerdown", () => {
 })
 
 nextBtn.addEventListener("pointerup", () => {
+   clearInterval(ringInterval);
+  circle.style.strokeDashoffset = 176; // Reset on release
   isDragging = false;
   nextBtn.classList.remove(pressedClass);
 
@@ -404,7 +445,7 @@ nextBtn.addEventListener("pointerup", () => {
     }
   }
 
-  if (currentMachine === "Reveal" && nextBtn.textContent === "Reveal") {
+  if (currentMachine === "Reveal" && nextBtn.querySelector('.btn-label').textContent === "Reveal") {
     curious.value = true; // set curious on release
     if (rise.value < 80) {
       const downInterval = setInterval(() => {
@@ -420,17 +461,17 @@ nextBtn.addEventListener("pointerup", () => {
      // startParticles();
       nextBtn.classList.add("disabled");
       
-      nextBtn.innerText = "Done";
+      nextBtn.querySelector('.btn-label').textContent = "Done";
     }
   }
 });
 
 function handleToBottomComplete() {
-  nextBtn.innerText = "Waiting...";
+  nextBtn.querySelector('.btn-label').textContent = "Waiting...";
   nextBtn.disabled = true;
 
   setTimeout(() => {
-    nextBtn.innerText = "Unveil";
+    nextBtn.querySelector('.btn-label').textContent = "Unveil";
     nextBtn.disabled = false;
   }, 2000);
 }
