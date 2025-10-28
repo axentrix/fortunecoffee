@@ -8,16 +8,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Advent+Pro:ital,wght@0,100..900;1,100..900&family=Oleo+Script+Swash+Caps:wght@400;700&display=swap');
 
 html, body {
-  margin: 0; padding: 0; overflow: hidden; background: #9A9D8A;
+  margin: 0; padding: 0; overflow: hidden; 
+  background: #9A9D8A;
+  
 }
 canvas {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block;
   touch-action: none;
 }
-#riveCanvas { z-index: 1; }
+#riveCanvas { z-index: 1; 
+object-fit: contain;
+
+  object-position: top center;}
+
 #canvas {
   z-index: 2;
   pointer-events: none;
+  transition: transform 0.6s ease;
+  transform-origin: center center;
+   transform: scale(1); /* 30% smaller */
+}
+
+#canvas.shrink {
+  transform: scale(0.8) translateY(-30%); /* 30% smaller */
+
 }
 h2 {
   position: relative; z-index: 3;
@@ -34,7 +48,7 @@ h2 {
     justify-content: center;
     align-items: center;
     flex-direction:column;
-    gap:44px;
+    gap:24px;
     bottom:32px;
 }
 #nextBtn{
@@ -99,6 +113,7 @@ pointer-events: none;
 #status {
   opacity: 1;
   transition: opacity 1s ease;
+  margin:0;
 }
 #status.hidden {
   opacity: 0;
@@ -134,6 +149,7 @@ pointer-events: none;
   font-weight: bold;
   margin-bottom: 6px;
   color:#282823;
+  margin-top:0;
 }
 .popup p {
   font-size: 14px;
@@ -190,52 +206,52 @@ const symbolData = {
 bird:{
 name: "Bird",
 subtitle:"Message",
-description:"You will receive news or information."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 
 ring:{
 name: "Ring",
 subtitle:"Commitment",
-description:"Proposal, marriage, union."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 eye:{
 name: "Eye",
 subtitle:"Attention",
-description:"Someone is  watching you, or you need clarity."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 key:{
 name: "Key",
 subtitle:"Solution",
-description:"An opportunity or way out will appear."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 heart:{
 name: "Heart",
 subtitle:"Love",
-description:"Falling in love, emotional awakening."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 road: {
 name: "Road",
 subtitle:"Journey",
-description:"Travel, relocation, or changes."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 cross:{
 name: "Cross",
 subtitle:"Trial",
-description:"Temporary difficulties, karmic lesson."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 fish:{
 name: "Fish",
 subtitle:"Luck",
-description:"Money, success, prosperity."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 flower:{
 name: "Flower",
 subtitle:"Beauty",
-description:"Inspiration, creative uplift."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 person:{
 name: "Person",
 subtitle:"Encounter",
-description:"A new person will enter your life."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 tower:{
 name: "Tower",
 subtitle:"Strength",
-description:"Support, authority, stability."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 house:{
 name: "House",
 subtitle:"Family",
-description:"Protection, lineage, family ties."},
+description:"The Eye reminds you that nothing goes unnoticed. Someone may be observing your actions closely, or perhaps life itself is calling you to sharpen your vision. Pay attention to details, for clarity will guide you toward the truth hidden in plain sight."},
 
 };
 
@@ -282,6 +298,10 @@ function loadStateMachine(name) {
     stateMachines: name,
     autoplay: true,
     fit: rive.Fit.Cover,
+    layout: new rive.Layout({
+          fit: rive.Fit.Contain,                
+          alignment: rive.Alignment.TopCenter,   
+        }),
     devicePixelRatio: dpr,
     onLoad: () => {
        loader.style.display = "none";
@@ -630,6 +650,7 @@ window.addEventListener('touchstart', function(event) {
 
   async function init() {
     particlesArray = [];
+
     //const svgPaths = await loadSVG('symbols/fish.svg');
     const svgFiles = [
   'bird', 'cross', 'eye', 'fish', 'flower', 'heart',
@@ -688,7 +709,7 @@ function showSymbolPopup(symbolKey) {
   document.getElementById("symbolDescription").textContent = data.description;
 
   popup.classList.add("show");
-
+document.getElementById("canvas").classList.add("shrink");
 
 }
 function fadeOutParticles() {
@@ -716,7 +737,7 @@ const collectBtn = document.getElementById("collectBtn");
 // fadeOutParticles(); 
 // nextBtn.classList.remove("disabled");
 
-    
+     document.getElementById("canvas").classList.remove("shrink");
    //switchTo("Idle");
   
 
